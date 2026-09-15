@@ -35,18 +35,17 @@ export default function HomePage() {
   return (
     <main className="relative flex min-h-dvh items-center justify-center overflow-hidden px-6">
       <div
-        className="pointer-events-none absolute inset-0"
+        className="chroma-blobs pointer-events-none absolute -inset-[15%]"
         style={{
           background:
             "radial-gradient(ellipse 80% 60% at 20% 20%, rgba(56,189,248,0.22), transparent 55%), radial-gradient(ellipse 70% 50% at 80% 10%, rgba(251,146,60,0.2), transparent 50%), radial-gradient(ellipse 60% 50% at 50% 90%, rgba(167,139,250,0.18), transparent 55%), #f6f4ef",
         }}
       />
       <div
-        className="pointer-events-none absolute inset-0 opacity-30"
+        className="chroma-dots pointer-events-none absolute inset-0 opacity-30"
         style={{
           backgroundImage:
             "radial-gradient(circle at 1px 1px, rgba(15,23,42,0.1) 1px, transparent 0)",
-          backgroundSize: "28px 28px",
         }}
       />
 

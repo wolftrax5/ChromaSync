@@ -32,3 +32,51 @@ button,
 input {
   font: inherit;
 }
+
+@keyframes chroma-blobs-drift {
+  0%,
+  100% {
+    transform: translate3d(-4%, -3%, 0) scale(1);
+  }
+  25% {
+    transform: translate3d(5%, -2%, 0) scale(1.28);
+  }
+  50% {
+    transform: translate3d(3%, 5%, 0) scale(0.92);
+  }
+  75% {
+    transform: translate3d(-3%, 4%, 0) scale(1.22);
+  }
+}
+
+@keyframes chroma-dots-drift {
+  0%,
+  100% {
+    background-position: 0 0;
+    background-size: 24px 24px;
+    opacity: 0.22;
+  }
+  50% {
+    background-position: 28px -28px;
+    background-size: 36px 36px;
+    opacity: 0.35;
+  }
+}
+
+.chroma-blobs {
+  transform-origin: center center;
+  animation: chroma-blobs-drift 20s ease-in-out infinite;
+  will-change: transform;
+}
+
+.chroma-dots {
+  animation: chroma-dots-drift 16s ease-in-out infinite;
+  will-change: background-position, background-size, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chroma-blobs,
+  .chroma-dots {
+    animation: none;
+  }
+}
