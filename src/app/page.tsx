@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { SubmitEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
 function slugify(value: string): string {
@@ -26,7 +26,7 @@ export default function HomePage() {
   const router = useRouter();
   const [roomId, setRoomId] = useState("");
 
-  const joinRoom = (event: FormEvent) => {
+  const joinRoom = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const id = slugify(roomId) || randomRoomId();
     router.push(`/room/${id}`);
@@ -85,6 +85,18 @@ export default function HomePage() {
           Or create a random room
         </button>
       </section>
+
+      <footer className="absolute bottom-6 left-0 right-0 z-10 text-center text-sm text-slate-500">
+        Made with Love by{" "}
+        <a
+          href="https://github.com/wolftrax5"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-slate-700 underline-offset-4 transition hover:text-slate-900 hover:underline"
+        >
+          wolftrax5
+        </a>
+      </footer>
     </main>
   );
 }
