@@ -18,7 +18,10 @@ export function Toolbar() {
   const setStrokeSize = useUiStore((s) => s.setStrokeSize);
 
   const clearCanvas = useMutation(({ storage }) => {
-    storage.get("strokes").clear();
+    const strokes = storage.get("strokes");
+    for (const id of Array.from(strokes.keys())) {
+      strokes.delete(id);
+    }
   }, []);
 
   return (
