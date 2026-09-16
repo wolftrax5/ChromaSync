@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, DM_Sans } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "@/lib/liveblocks.config";
 import "./globals.css";
 
@@ -27,6 +28,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${display.variable} ${sans.variable} antialiased`}>
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );
