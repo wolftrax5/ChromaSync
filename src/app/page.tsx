@@ -93,7 +93,7 @@ export default function HomePage() {
       <footer className="absolute bottom-6 left-0 right-0 z-10 text-center text-sm text-slate-500">
         Made with Love by{" "}
         <a
-          href="https://github.com/wolftrax5"
+          href="https://www.wolftrax.me/"
           target="_blank"
           rel="noopener noreferrer"
           className="font-medium text-slate-700 underline-offset-4 transition hover:text-slate-900 hover:underline"
