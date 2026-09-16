@@ -57,6 +57,10 @@ export default function HomePage() {
           Draw together in real time — shared strokes, live cursors, and a
           pressure-sensitive pen.
         </p>
+        <p className="mt-3 max-w-md text-base leading-relaxed text-slate-600">
+          share the room name with your friends to start drawing together{" "}
+          <span className="font-medium text-slate-900">Mine is wolftrax</span>
+        </p>
 
         <form
           onSubmit={joinRoom}
