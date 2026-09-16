@@ -69,8 +69,9 @@ export default function HomePage() {
           <input
             value={roomId}
             onChange={(e) => setRoomId(e.target.value)}
+            name="roomId"
             placeholder="Room name (optional)"
-            className="h-12 flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none ring-slate-900/10 placeholder:text-slate-400 focus:ring-2"
+            className="h-12 sm:flex-1 rounded-2xl border border-slate-200 bg-white px-4 text-base sm:text-sm text-slate-900 outline-none ring-slate-900/10 placeholder:text-slate-400 focus:ring-2"
           />
           <button
             type="submit"
