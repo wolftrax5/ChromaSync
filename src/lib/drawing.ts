@@ -1,5 +1,6 @@
 import getStroke from "perfect-freehand";
 import type { Point, Stroke } from "@/lib/liveblocks.config";
+import type { Viewport } from "@/store/ui";
 
 export function getSvgPathFromStroke(stroke: number[][]): string {
   if (!stroke.length) return "";
@@ -41,6 +42,20 @@ export function pointerToPoint(
   return {
     x: event.clientX - bounds.left,
     y: event.clientY - bounds.top,
+    pressure: event.pressure > 0 ? event.pressure : 0.5,
+  };
+}
+
+export function screenToWorld(
+  event: Pick<PointerEvent, "clientX" | "clientY" | "pressure">,
+  bounds: DOMRect,
+  viewport: Viewport,
+): Point {
+  const screenX = event.clientX - bounds.left;
+  const screenY = event.clientY - bounds.top;
+  return {
+    x: (screenX - viewport.x) / viewport.zoom,
+    y: (screenY - viewport.y) / viewport.zoom,
     pressure: event.pressure > 0 ? event.pressure : 0.5,
   };
 }

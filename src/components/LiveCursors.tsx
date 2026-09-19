@@ -1,6 +1,7 @@
 "use client";
 
 import { useOthers } from "@liveblocks/react/suspense";
+import { useUiStore } from "@/store/ui";
 
 function Cursor({
   x,
@@ -46,16 +47,21 @@ function Cursor({
 
 export function LiveCursors() {
   const others = useOthers();
+  const viewport = useUiStore((s) => s.viewport);
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
       {others.map(({ connectionId, presence, info }) => {
         if (!presence.cursor) return null;
+        // presence.cursor is stored in world coordinates; project through the
+        // local viewport so remote cursors track the shared drawing.
+        const screenX = presence.cursor.x * viewport.zoom + viewport.x;
+        const screenY = presence.cursor.y * viewport.zoom + viewport.y;
         return (
           <Cursor
             key={connectionId}
-            x={presence.cursor.x}
-            y={presence.cursor.y}
+            x={screenX}
+            y={screenY}
             color={info?.color ?? presence.color}
             name={info?.name ?? presence.name}
           />

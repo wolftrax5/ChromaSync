@@ -13,27 +13,21 @@ import {
   useUpdateMyPresence,
 } from "@liveblocks/react/suspense";
 import type { Point, Stroke } from "@/lib/liveblocks.config";
-import { createStrokeId, pointerToPoint, strokeToPath } from "@/lib/drawing";
+import { createStrokeId, screenToWorld, strokeToPath } from "@/lib/drawing";
 import { useUiStore } from "@/store/ui";
 import { LiveCursors } from "@/components/LiveCursors";
 
-function drawStroke(
-  ctx: CanvasRenderingContext2D,
-  stroke: Stroke,
-  dpr: number,
-) {
+function drawStroke(ctx: CanvasRenderingContext2D, stroke: Stroke) {
   if (stroke.erased || stroke.points.length < 1) return;
 
   const pathData = strokeToPath(stroke);
   if (!pathData) return;
 
   const path = new Path2D(pathData);
-  ctx.save();
-  ctx.scale(dpr, dpr);
   ctx.fillStyle = stroke.color;
   ctx.globalAlpha = stroke.opacity;
   ctx.fill(path);
-  ctx.restore();
+  ctx.globalAlpha = 1;
 }
 
 export function Canvas() {
@@ -42,11 +36,15 @@ export function Canvas() {
   const rafRef = useRef<number | null>(null);
   const pendingPointRef = useRef<Point | null>(null);
   const drawingIdRef = useRef<string | null>(null);
+  const panLastRef = useRef<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const [isPanning, setIsPanning] = useState(false);
 
   const tool = useUiStore((s) => s.tool);
   const color = useUiStore((s) => s.color);
   const strokeSize = useUiStore((s) => s.strokeSize);
+  const viewport = useUiStore((s) => s.viewport);
+  const panBy = useUiStore((s) => s.panBy);
   const updateMyPresence = useUpdateMyPresence();
 
   const strokes = useStorage((root) => root.strokes);
@@ -90,15 +88,26 @@ export function Canvas() {
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
+
+    // Reset transform, clear, then apply viewport (pan + zoom) so the entire
+    // scene is drawn as a single transformed world.
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(
+      viewport.zoom * dpr,
+      0,
+      0,
+      viewport.zoom * dpr,
+      viewport.x * dpr,
+      viewport.y * dpr,
+    );
 
     if (!strokes) return;
 
-    const ordered = Array.from(strokes.values()).filter((s) => !s.erased);
-    for (const stroke of ordered) {
-      drawStroke(ctx, stroke, dpr);
+    for (const stroke of strokes.values()) {
+      drawStroke(ctx, stroke);
     }
-  }, [strokes]);
+  }, [strokes, viewport]);
 
   useEffect(() => {
     paint();
@@ -138,14 +147,17 @@ export function Canvas() {
     pendingPointRef.current = null;
 
     if (tool === "eraser") {
-      eraseNear(point, Math.max(14, strokeSize * 1.6));
+      // Eraser radius is authored in screen pixels; convert to world units so
+      // the on-screen feel stays constant across zoom levels.
+      const screenRadius = Math.max(14, strokeSize * 1.6);
+      eraseNear(point, screenRadius / viewport.zoom);
       return;
     }
 
     if (tool === "pen") {
       appendPoint(strokeId, point);
     }
-  }, [appendPoint, eraseNear, strokeSize, tool]);
+  }, [appendPoint, eraseNear, strokeSize, tool, viewport.zoom]);
 
   const schedulePoint = useCallback(
     (point: Point) => {
@@ -156,17 +168,28 @@ export function Canvas() {
     [flushPendingPoint],
   );
 
-  const getLocalPoint = (event: ReactPointerEvent) => {
-    const bounds = containerRef.current?.getBoundingClientRect();
-    if (!bounds) return null;
-    return pointerToPoint(event.nativeEvent, bounds);
-  };
+  const getWorldPoint = useCallback(
+    (event: ReactPointerEvent) => {
+      const bounds = containerRef.current?.getBoundingClientRect();
+      if (!bounds) return null;
+      return screenToWorld(event.nativeEvent, bounds, viewport);
+    },
+    [viewport],
+  );
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    // Pan when using the hand tool (or middle-mouse-button as a bonus shortcut).
+    if (tool === "hand" || event.button === 1) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+      panLastRef.current = { x: event.clientX, y: event.clientY };
+      setIsPanning(true);
+      return;
+    }
+
     if (tool === "select") return;
     if (event.button !== 0) return;
 
-    const point = getLocalPoint(event);
+    const point = getWorldPoint(event);
     if (!point) return;
 
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -174,7 +197,8 @@ export function Canvas() {
 
     if (tool === "eraser") {
       drawingIdRef.current = "eraser";
-      eraseNear(point, Math.max(14, strokeSize * 1.6));
+      const screenRadius = Math.max(14, strokeSize * 1.6);
+      eraseNear(point, screenRadius / viewport.zoom);
       return;
     }
 
@@ -190,20 +214,33 @@ export function Canvas() {
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const point = getLocalPoint(event);
+    // Panning takes precedence over cursor/presence updates while active.
+    if (panLastRef.current) {
+      const dx = event.clientX - panLastRef.current.x;
+      const dy = event.clientY - panLastRef.current.y;
+      panLastRef.current = { x: event.clientX, y: event.clientY };
+      panBy(dx, dy);
+      return;
+    }
+
+    const point = getWorldPoint(event);
     if (!point) return;
 
     updateMyPresence({ cursor: { x: point.x, y: point.y }, tool });
 
     if (!drawingIdRef.current) return;
-    if (tool === "select") return;
+    if (tool === "select" || tool === "hand") return;
 
     schedulePoint(point);
   };
 
-  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const endInteraction = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (panLastRef.current) {
+      panLastRef.current = null;
+      setIsPanning(false);
     }
     drawingIdRef.current = null;
     pendingPointRef.current = null;
@@ -218,11 +255,15 @@ export function Canvas() {
   };
 
   const cursorClass =
-    tool === "pen"
-      ? "cursor-crosshair"
-      : tool === "eraser"
-        ? "cursor-cell"
-        : "cursor-default";
+    tool === "hand"
+      ? isPanning
+        ? "cursor-grabbing"
+        : "cursor-grab"
+      : tool === "pen"
+        ? "cursor-crosshair"
+        : tool === "eraser"
+          ? "cursor-cell"
+          : "cursor-default";
 
   return (
     <div
@@ -230,8 +271,8 @@ export function Canvas() {
       className={`relative h-full w-full touch-none overflow-hidden bg-[#f6f4ef] ${cursorClass}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerUp={endInteraction}
+      onPointerCancel={endInteraction}
       onPointerLeave={onPointerLeave}
     >
       <div
@@ -239,7 +280,8 @@ export function Canvas() {
         style={{
           backgroundImage:
             "radial-gradient(circle at 1px 1px, rgba(15,23,42,0.08) 1px, transparent 0)",
-          backgroundSize: "24px 24px",
+          backgroundSize: `${24 * viewport.zoom}px ${24 * viewport.zoom}px`,
+          backgroundPosition: `${viewport.x}px ${viewport.y}px`,
         }}
       />
       <canvas ref={canvasRef} className="absolute inset-0 z-10 block" />

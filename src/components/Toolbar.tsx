@@ -1,21 +1,42 @@
 "use client";
 
 import { useMutation } from "@liveblocks/react/suspense";
-import { COLORS, type Tool, useUiStore } from "@/store/ui";
+import {
+  COLORS,
+  MAX_ZOOM,
+  MIN_ZOOM,
+  ZOOM_STEP,
+  type Tool,
+  useUiStore,
+} from "@/store/ui";
 
 const TOOLS: { id: Tool; label: string; icon: string }[] = [
   { id: "select", label: "Select", icon: "↖" },
   { id: "pen", label: "Pen", icon: "✎" },
   { id: "eraser", label: "Eraser", icon: "⌫" },
+  { id: "hand", label: "Hand (pan)", icon: "✋" },
 ];
+
+function getViewportCenter(): { cx: number; cy: number } {
+  if (typeof window === "undefined") {
+    return { cx: 0, cy: 0 };
+  }
+  return {
+    cx: window.innerWidth / 2,
+    cy: window.innerHeight / 2,
+  };
+}
 
 export function Toolbar() {
   const tool = useUiStore((s) => s.tool);
   const color = useUiStore((s) => s.color);
   const strokeSize = useUiStore((s) => s.strokeSize);
+  const zoom = useUiStore((s) => s.viewport.zoom);
   const setTool = useUiStore((s) => s.setTool);
   const setColor = useUiStore((s) => s.setColor);
   const setStrokeSize = useUiStore((s) => s.setStrokeSize);
+  const zoomAt = useUiStore((s) => s.zoomAt);
+  const resetViewport = useUiStore((s) => s.resetViewport);
 
   const clearCanvas = useMutation(({ storage }) => {
     const strokes = storage.get("strokes");
@@ -23,6 +44,19 @@ export function Toolbar() {
       strokes.delete(id);
     }
   }, []);
+
+  const zoomOutDisabled = zoom <= MIN_ZOOM + 1e-6;
+  const zoomInDisabled = zoom >= MAX_ZOOM - 1e-6;
+
+  const handleZoomOut = () => {
+    const { cx, cy } = getViewportCenter();
+    zoomAt(1 / ZOOM_STEP, cx, cy);
+  };
+
+  const handleZoomIn = () => {
+    const { cx, cy } = getViewportCenter();
+    zoomAt(ZOOM_STEP, cx, cy);
+  };
 
   return (
     <div className="pointer-events-auto absolute bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-2 shadow-[0_12px_40px_rgba(15,23,42,0.12)] backdrop-blur-md">
@@ -63,7 +97,8 @@ export function Toolbar() {
               aria-pressed={active}
               onClick={() => {
                 setColor(swatch);
-                if (tool === "eraser" || tool === "select") setTool("pen");
+                if (tool === "eraser" || tool === "select" || tool === "hand")
+                  setTool("pen");
               }}
               className={`h-7 w-7 rounded-full border transition ${
                 active
@@ -108,6 +143,40 @@ export function Toolbar() {
           className="w-20 accent-slate-900"
         />
       </label>
+
+      <div className="mx-1 h-8 w-px bg-slate-200" />
+
+      <div className="flex items-center gap-1 rounded-xl bg-slate-100/80 p-1">
+        <button
+          type="button"
+          title="Zoom out"
+          aria-label="Zoom out"
+          onClick={handleZoomOut}
+          disabled={zoomOutDisabled}
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-base text-slate-600 transition hover:bg-white hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-600"
+        >
+          <span aria-hidden>−</span>
+        </button>
+        <button
+          type="button"
+          title="Reset zoom"
+          aria-label={`Reset zoom (currently ${Math.round(zoom * 100)}%)`}
+          onClick={resetViewport}
+          className="min-w-13 rounded-lg px-2 py-1 text-xs font-medium text-slate-700 transition hover:bg-white hover:text-slate-900"
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+        <button
+          type="button"
+          title="Zoom in"
+          aria-label="Zoom in"
+          onClick={handleZoomIn}
+          disabled={zoomInDisabled}
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-base text-slate-600 transition hover:bg-white hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-600"
+        >
+          <span aria-hidden>+</span>
+        </button>
+      </div>
 
       <div className="mx-1 h-8 w-px bg-slate-200" />
 
